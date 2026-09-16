@@ -1,10 +1,10 @@
+using System.Collections.Generic;
 using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.UIElements;
 
-public class SteeringBehaviour : MonoBehaviour
-{
+public class SteeringBehaviour : MonoBehaviour {
     
     public Vector2 Position = Vector2.zero;
     public Vector2 Velocity = Vector2.zero;
@@ -19,22 +19,19 @@ public class SteeringBehaviour : MonoBehaviour
     public float EvadeForceWeight;
     public float ArriveForceWeight;
     public float WanderForceWeight;
+    public float AlignForceWeight;
+    public float CohesionForceWeight;
+    public float SeperationForceWeight;
 
-    [Header("Seek Behaviour")]
+    [Header("Seek & Flee Behaviour")]
     public Vector2 SeekTargetPosition;
-    
-    [Header("Flee Behaviour")]
     public Vector2 FleeTargetPosition;
     
-    [Header("Pursue Behaviour")]
+    [Header("Pursue, Evade, & Arrive Behaviour")]
     public SteeringBehaviour PursuedAgent;
-    
-    [Header("Evade Behaviour")]
     public SteeringBehaviour EvadeAgent;
-    
-    [Header("Arrive Behaviour")]
     public Vector2 ArriveTargetPosition;
-    public float SlowingRadius;
+    public float ArriveSlowingRadius;
 
     [Header("Wander Behaviour")]
     public float WanderDistance;
@@ -42,13 +39,20 @@ public class SteeringBehaviour : MonoBehaviour
     public float WanderAngle;
     public float WanderChange;
 
+    [Header("Flocking Behaviour")]
+    public List<SteeringBehaviour> AgentFlockList;
+
     void Update() {
         if (SeekForceWeight != 0) ApplyForce(SeekForce(SeekTargetPosition.x, SeekTargetPosition.y), SeekForceWeight);
         if (FleeForceWeight != 0) ApplyForce(FleeForce(FleeTargetPosition.x, FleeTargetPosition.y), FleeForceWeight);
         if (PursueForceWeight != 0) ApplyForce(PursueForce(PursuedAgent), PursueForceWeight);
         if (EvadeForceWeight != 0) ApplyForce(EvadeForce(EvadeAgent), EvadeForceWeight);
-        if (ArriveForceWeight != 0) ApplyForce(ArriveForce(ArriveTargetPosition.x, ArriveTargetPosition.y, SlowingRadius), ArriveForceWeight);
+        if (ArriveForceWeight != 0) ApplyForce(ArriveForce(ArriveTargetPosition.x, ArriveTargetPosition.y, ArriveSlowingRadius), ArriveForceWeight);
         if (WanderForceWeight != 0) ApplyForce(WanderForce(), WanderForceWeight);
+        if (AlignForceWeight != 0) ApplyForce(AlignForce(), AlignForceWeight);
+        if (CohesionForceWeight != 0) ApplyForce(CohesionForce(), CohesionForceWeight);
+        if (SeperationForceWeight != 0) ApplyForce(SeperationForce(), SeperationForceWeight);
+
 
         Velocity += SteeringForce;
         Velocity = Vector2.ClampMagnitude(Velocity, MaxSpeed);
@@ -115,7 +119,7 @@ public class SteeringBehaviour : MonoBehaviour
         Vector2 vector = Velocity;
         vector = vector.normalized * WanderDistance;
         
-        float radians = (transform.rotation.z + WanderAngle) * Mathf.Deg2Rad;
+        float radians = (transform.eulerAngles.z + WanderAngle) * Mathf.Deg2Rad;
         Vector2 lengthDirVector = new(
             Mathf.Cos(radians) * WanderPower,
             Mathf.Sin(radians) * WanderPower
@@ -124,6 +128,63 @@ public class SteeringBehaviour : MonoBehaviour
         vector += lengthDirVector;
         vector = Vector2.ClampMagnitude(vector, MaxForce);
         WanderAngle += Random.Range(-WanderChange, WanderChange);
+        return vector;
+    }
+
+    private Vector2 AlignForce() {
+        Vector2 vector = new(); 
+        int count = 0;
+
+        foreach (SteeringBehaviour agent in AgentFlockList) {
+            if (agent == this) continue;
+            vector += agent.Velocity;
+            count ++;
+        }
+
+        if (count > 0) {
+            vector = vector.normalized * MaxForce;
+        }
+
+        return vector;
+    }
+
+    private Vector2 CohesionForce() {
+        Vector2 vector = new(); 
+        int count = 0;
+
+        foreach (SteeringBehaviour agent in AgentFlockList) {
+            if (agent == this) continue;
+            vector += agent.Position;
+            count ++;
+        }
+
+        if (count > 0) {
+            vector /= count;
+            vector = SeekForce(vector.x, vector.y);
+        }
+
+        return vector;
+    }
+
+    private Vector2 SeperationForce() {
+        Vector2 vector = new(); 
+        Vector2 vectorTo; 
+        int count = 0;
+
+        foreach (SteeringBehaviour agent in AgentFlockList) {
+            if (agent == this) continue;
+            vectorTo = Position - agent.Position;
+            float dist = Mathf.Min(vectorTo.magnitude, 10);
+            float scale = 1 - (dist / 10);
+            vectorTo *= scale;
+            vector += vectorTo;
+            count ++;
+        }
+
+        if (count > 0) {
+            vector = vector.normalized * MaxForce;
+        }
+
         return vector;
     }
 }
