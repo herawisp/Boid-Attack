@@ -1,5 +1,6 @@
 using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.UIElements;
 
 public class SteeringBehaviour : MonoBehaviour
@@ -17,6 +18,7 @@ public class SteeringBehaviour : MonoBehaviour
     public float PursueForceWeight;
     public float EvadeForceWeight;
     public float ArriveForceWeight;
+    public float WanderForceWeight;
 
     [Header("Seek Behaviour")]
     public Vector2 SeekTargetPosition;
@@ -46,7 +48,7 @@ public class SteeringBehaviour : MonoBehaviour
         if (PursueForceWeight != 0) ApplyForce(PursueForce(PursuedAgent), PursueForceWeight);
         if (EvadeForceWeight != 0) ApplyForce(EvadeForce(EvadeAgent), EvadeForceWeight);
         if (ArriveForceWeight != 0) ApplyForce(ArriveForce(ArriveTargetPosition.x, ArriveTargetPosition.y, SlowingRadius), ArriveForceWeight);
-
+        if (WanderForceWeight != 0) ApplyForce(WanderForce(), WanderForceWeight);
 
         Velocity += SteeringForce;
         Velocity = Vector2.ClampMagnitude(Velocity, MaxSpeed);
@@ -109,10 +111,19 @@ public class SteeringBehaviour : MonoBehaviour
         return vector;
     }
 
-    // private Vector2 WanderForce() {
-    //     Vector2 vector = Velocity;
-    //     vector = vector.normalized * WanderDistance;
+    private Vector2 WanderForce() {
+        Vector2 vector = Velocity;
+        vector = vector.normalized * WanderDistance;
         
-    //     float radians = ()
-    // }
+        float radians = (transform.rotation.z + WanderAngle) * Mathf.Deg2Rad;
+        Vector2 lengthDirVector = new(
+            Mathf.Cos(radians) * WanderPower,
+            Mathf.Sin(radians) * WanderPower
+        );
+
+        vector += lengthDirVector;
+        vector = Vector2.ClampMagnitude(vector, MaxForce);
+        WanderAngle += Random.Range(-WanderChange, WanderChange);
+        return vector;
+    }
 }
