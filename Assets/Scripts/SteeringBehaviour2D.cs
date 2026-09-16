@@ -10,12 +10,30 @@ public class SteeringBehaviour : MonoBehaviour
     public float MaxSpeed = 1;
     public float MaxForce = 0.1f;
 
+    [Header("Behaviour Weights")]
+    public float SeekForceWeight;
+    public float FleeForceWeight;
+
+    [Header("Seek Behaviour")]
+    public Vector2 SeekTargetPosition;
+    
+    [Header("Flee Behaviour")]
+    public Vector2 FleeTargetPosition;
+
     void Update() {
+        if (SeekForceWeight != 0) ApplyForce(SeekForce(SeekTargetPosition.x, SeekTargetPosition.y), SeekForceWeight);
+        if (FleeForceWeight != 0) ApplyForce(FleeForce(FleeTargetPosition.x, FleeTargetPosition.y), FleeForceWeight);
+
         Velocity += SteeringForce;
         Velocity = Vector2.ClampMagnitude(Velocity, MaxSpeed);
         Position += Velocity;
 
         SteeringForce = Vector2.zero;
+    }
+
+    private void ApplyForce(Vector2 force, float weight) {
+        force *= weight;
+        SteeringForce += force;
     }
 
     private Vector2 SeekForce(float x, float y) {
